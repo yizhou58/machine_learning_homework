@@ -1,0 +1,9 @@
+# 此文件用于保持data目录结构
+# 运行以下脚本后，此目录将包含所有必要的数据文件：
+# 1. cd src/data_processing
+# 2. python download_data.py
+# 3. python preprocess_data.py
+# 4. cd ../models
+# 5. python collaborative_filtering.py
+# 6. python content_based_recommendation.py
+# 7. python hybrid_recommendation.py

@@ -1,0 +1,97 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 大型数据文件 - 由于GitHub文件大小限制，这些文件需要通过运行代码重新生成
+data/feature_matrix.npy
+data/svd_model.pkl
+data/meta_Electronics.json
+data/processed_ratings.csv
+data/ratings_Electronics.csv
+data/tfidf_vectorizer.pkl
+data/price_scaler.pkl
+data/item_features.csv
+data/user_item_matrix.npz
+data/user_id_map.pkl
+data/item_id_map.pkl
+
+# 只保留data目录结构，不保留任何数据文件
+data/*
+!data/.gitkeep
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.temp
