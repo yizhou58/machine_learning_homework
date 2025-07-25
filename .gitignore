@@ -84,6 +84,8 @@ data/item_features.csv
 data/user_item_matrix.npz
 data/user_id_map.pkl
 data/item_id_map.pkl
+data/ncf_model.pth
+data/algorithm_performance_*.png
 
 # 只保留data目录结构，不保留任何数据文件
 data/*

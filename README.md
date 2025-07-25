@@ -1,13 +1,40 @@
-# 电商智能推荐系统
+# 基于深度学习的电商智能推荐系统
 
 ## 🎯 项目概述
-基于Amazon Electronics数据集构建的完整推荐系统，实现了协同过滤、基于内容推荐和混合推荐三种算法。
+基于Amazon Electronics数据集构建的**深度学习增强**推荐系统，融合传统机器学习与神经网络技术，实现了协同过滤、基于内容推荐、神经协同过滤和混合推荐四种算法。
 
 ## 📊 项目成果
--  **数据规模**: 处理210万条评分数据，25万用户，14万商品
--  **算法实现**: SVD协同过滤、1900+维内容推荐、混合推荐系统
--  **性能指标**: RMSE 1.28, MAE 0.99, 特征维度1900+
--  **工程完整**: 数据预处理、模型训练、推荐生成完整流程
+- ✅ **数据规模**: 处理210万条评分数据，25万用户，14万商品
+- ✅ **算法实现**: SVD协同过滤、1900+维内容推荐、神经协同过滤、混合推荐系统
+- ✅ **深度学习**: Neural Collaborative Filtering + 多模态注意力机制
+- ✅ **性能指标**: RMSE 1.28, MAE 0.99, 特征维度1900+
+- ✅ **工程完整**: 数据预处理、模型训练、推荐生成完整流程
+
+## 📁 项目结构
+
+```
+recommendation_project/
+├── 📄 README.md                    # 项目说明
+├── 📄 项目报告.md                  # 学术报告
+├── 📄 requirements.txt             # 依赖包
+├── 📄 test.py                      # 功能测试 + 性能分析
+├── 📂 src/                         # 源代码
+│   ├── 📂 data_processing/         # 数据处理
+│   │   ├── download_data.py        # 数据下载
+│   │   └── preprocess_data.py      # 数据预处理
+│   └── 📂 models/                  # 推荐算法
+│       ├── collaborative_filtering.py         # 协同过滤
+│       ├── content_based_recommendation.py    # 内容推荐
+│       ├── neural_collaborative_filtering.py  # 神经协同过滤
+│       └── hybrid_recommendation.py           # 混合推荐
+└── 📂 data/                        # 数据目录 (运行后生成)
+    ├── processed_ratings.csv       # 评分数据
+    ├── item_features.csv           # 商品特征
+    ├── feature_matrix.npy          # 特征矩阵
+    ├── svd_model.pkl              # SVD模型
+    ├── ncf_model.pth              # 深度学习模型
+    └── algorithm_performance_*.png # 性能图表
+```
 
 ## 🧠 核心算法
 
@@ -21,9 +48,16 @@
 - **特点**: 可解释性强，解决冷启动问题
 - **文件**: `src/models/content_based_recommendation.py`
 
-### 3. 混合推荐系统
+### 3. 神经协同过滤 (Neural Collaborative Filtering) 🆕
+- **架构**: 多模态神经网络 + 注意力机制
+- **创新点**: 融合GMF和MLP，对比学习增强
+- **特点**: 深度学习增强，自动特征学习
+- **文件**: `src/models/neural_collaborative_filtering.py`
+
+### 4. 混合推荐系统
 - **策略**: 加权组合、智能切换、混合策略
-- **特点**: 融合两者优势，智能策略选择
+- **特点**: 融合三种算法优势，智能策略选择
+- **深度学习**: 可选启用神经网络增强
 - **文件**: `src/models/hybrid_recommendation.py`
 
 ## 🔍 详细分析
@@ -51,30 +85,8 @@
 | 多样性   | ⭐⭐⭐⭐     | ⭐⭐⭐      | ⭐⭐⭐⭐⭐    |
 | 鲁棒性   | ⭐⭐⭐      | ⭐⭐⭐⭐     | ⭐⭐⭐⭐⭐    |
 
-## 📁 项目结构
 
-```
-recommendation_project/
-├── data/                    # 数据文件
-│   ├── ratings_Electronics.csv      # 原始评分数据
-│   ├── meta_Electronics.json        # 商品元数据
-│   ├── processed_ratings.csv        # 清洗后评分数据
-│   ├── item_features.csv           # 商品特征矩阵
-│   ├── svd_model.pkl               # 协同过滤模型
-│   └── feature_matrix.npy          # 标准化特征矩阵
-├── src/
-│   ├── data_processing/
-│   │   ├── download_data.py         # 数据下载脚本
-│   │   └── preprocess_data.py       # 数据预处理
-│   └── models/
-│       ├── collaborative_filtering.py    # 协同过滤模型
-│       ├── content_based_recommendation.py # 基于内容推荐
-│       ├── hybrid_recommendation.py      # 混合推荐系统
-├── test.py                  # 功能测试脚本
-├── requirements.txt         # 依赖包
-├── README.md               # 项目说明
-└── PROJECT_SUMMARY.md      # 项目详细总结
-```
+
 
 ## 🚀 快速开始
 
@@ -89,8 +101,6 @@ pip install -r requirements.txt
 ```
 
 ### 2. 数据准备
-
-⚠️ **重要说明**: 由于GitHub文件大小限制，大型数据文件未包含在仓库中。请按以下步骤获取数据：
 
 #### 方法1: 自动下载和处理 (推荐)
 ```bash
@@ -124,14 +134,26 @@ python preprocess_data.py
 cd src/models
 python collaborative_filtering.py      # 训练SVD协同过滤模型
 python content_based_recommendation.py # 训练基于内容推荐模型
+
+# 可选：训练深度学习模型 (需要GPU加速，推荐)
+python neural_collaborative_filtering.py # 训练神经协同过滤模型
+
 python hybrid_recommendation.py        # 训练混合推荐系统
 ```
 
-### 4. 功能测试
+### 4. 功能测试与性能分析
 ```bash
-# 运行完整功能测试
+# 运行完整功能测试 + 深度学习演示 + 性能可视化
 python test.py
 ```
+
+测试完成后将自动生成：
+- ✅ 所有算法功能验证
+- ✅ 深度学习模型测试
+- ✅ 性能对比图表 (保存在data/目录)
+- ✅ 算法排名分析
+
+**查看性能图表**: 测试完成后，性能图表会自动显示。也可以直接打开 `data/algorithm_performance_*.png` 文件查看。
 
 ### 5. 使用推荐系统
 ```python
@@ -159,14 +181,16 @@ for i, rec in enumerate(recommendations, 1):
 |------|------|-----|------|
 | 协同过滤 | 1.28 | 0.99 | 发现潜在兴趣，个性化强 |
 | 基于内容 | - | - | 解决冷启动，可解释性强 |
-| 混合推荐 | 融合优势 | 融合优势 | 结合两者优点，鲁棒性强 |
+| 神经协同过滤 | 端到端优化 | 自动学习 | 深度学习增强，注意力机制 |
+| 混合推荐 | 融合优势 | 融合优势 | 结合四种算法，性能最优 |
 
 ## 🎯 技术亮点
 1. **大规模数据处理**: 高效处理210万条评分数据
 2. **多模态特征工程**: 融合类别、品牌、价格、文本等1900+维特征
-3. **算法融合**: 协同过滤与内容推荐的智能混合
-4. **内存优化**: 解决大规模相似度矩阵的内存问题
-5. **工程完整性**: 从数据处理到模型部署的完整流程
+3. **深度学习创新**: 神经协同过滤 + 注意力机制 + 对比学习
+4. **算法融合**: 传统算法与深度学习的智能混合
+5. **内存优化**: 解决大规模相似度矩阵的内存问题
+6. **工程完整性**: 从数据处理到模型部署的完整流程
 
 ## 📊 数据集信息
 - **数据来源**: Amazon Electronics Dataset
@@ -178,17 +202,20 @@ for i, rec in enumerate(recommendations, 1):
 
 ## ✨ 主要特性
 
--  **多算法实现**: 协同过滤、内容推荐、混合推荐
-- **特征工程**: TF-IDF文本特征、One-hot类别编码、价格标准化
--  **模型持久化**: 支持模型保存和快速加载
--  **性能优化**: 矩阵运算优化，支持大规模数据
-- **完整测试**: 功能完整性测试脚本
+- ✅ **多算法实现**: 协同过滤、内容推荐、神经网络、混合推荐
+- ✅ **深度学习**: Neural Collaborative Filtering + 注意力机制
+- ✅ **特征工程**: TF-IDF文本特征、One-hot类别编码、价格标准化
+- ✅ **模型持久化**: 支持模型保存和快速加载
+- ✅ **性能优化**: 矩阵运算优化，GPU加速，支持大规模数据
+- ✅ **完整测试**: 功能完整性测试脚本
+- ✅ **演示系统**: 深度学习功能可视化演示
 
 ## 🔧 技术栈
 
 - **核心语言**: Python 3.8+
 - **数据处理**: Pandas, NumPy, Scipy
 - **机器学习**: scikit-learn, scikit-surprise
+- **深度学习**: PyTorch, 神经网络, 注意力机制
 - **特征工程**: TF-IDF向量化, One-hot编码, 标准化
 - **可视化**: Matplotlib, Seaborn
-- **模型持久化**: Pickle, NumPy
+- **模型持久化**: Pickle, NumPy, PyTorch

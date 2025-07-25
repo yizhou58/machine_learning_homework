@@ -5,6 +5,7 @@
 import pandas as pd
 import numpy as np
 import pickle
+import torch
 from surprise import Dataset, Reader
 from collaborative_filtering import CollaborativeFilteringModel
 from content_based_recommendation import ContentBasedRecommender
@@ -12,17 +13,31 @@ from collections import defaultdict
 import warnings
 warnings.filterwarnings('ignore')
 
+# 尝试导入深度学习模型
+try:
+    from neural_collaborative_filtering import NeuralCollaborativeFiltering, MultiModalNCF
+    DEEP_LEARNING_AVAILABLE = True
+except ImportError:
+    DEEP_LEARNING_AVAILABLE = False
+    print("⚠️ 深度学习模块未安装，将使用传统算法")
+
 class HybridRecommendationSystem:
     def __init__(self, data_dir="data"):
         self.data_dir = data_dir
         self.cf_model = None
         self.cb_model = None
+        self.ncf_model = None  # 神经协同过滤模型
         self.ratings_df = None
         self.metadata_df = None
-        
+
         # 混合策略参数
-        self.cf_weight = 0.6  # 协同过滤权重
-        self.cb_weight = 0.4  # 基于内容推荐权重
+        self.cf_weight = 0.4   # 协同过滤权重
+        self.cb_weight = 0.3   # 基于内容推荐权重
+        self.ncf_weight = 0.3  # 神经网络权重
+
+        # 深度学习相关
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.use_deep_learning = DEEP_LEARNING_AVAILABLE
         
     def load_models(self):
         """加载协同过滤和基于内容推荐模型"""
@@ -60,12 +75,90 @@ class HybridRecommendationSystem:
         with open(f"{self.data_dir}/price_scaler.pkl", 'rb') as f:
             self.cb_model.scaler = pickle.load(f)
         
+        # 加载深度学习模型
+        if self.use_deep_learning:
+            print("   - 检查神经协同过滤模型...")
+            try:
+                self.load_ncf_model()
+                print("   ✅ 深度学习模型加载成功")
+            except Exception as e:
+                print(f"   ℹ️ 深度学习模型加载失败: {str(e)}")
+                print(f"      提示: 运行 'python 快速训练深度学习模型.py' 重新训练模型")
+                self.use_deep_learning = False
+
         # 共享数据
         self.ratings_df = ratings_df
         self.metadata_df = self.cb_model.metadata_df
-        
+
         print("✅ 混合推荐系统组件加载完成!")
-        
+        if self.use_deep_learning:
+            print("🧠 深度学习增强模式已启用")
+
+    def load_ncf_model(self):
+        """加载神经协同过滤模型"""
+        import os
+
+        model_path = f"{self.data_dir}/ncf_model.pth"
+        print(f"      尝试加载模型: {os.path.abspath(model_path)}")
+
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"神经协同过滤模型文件不存在: {os.path.abspath(model_path)}")
+
+        # 加载模型检查点
+        checkpoint = torch.load(model_path, map_location=self.device)
+
+        # 重建模型 - 使用简化的QuickNCF架构
+        config = checkpoint['model_config']
+
+        # 创建简化的NCF模型类
+        import torch.nn as nn
+        class QuickNCF(nn.Module):
+            def __init__(self, num_users, num_items, embedding_dim=32):
+                super(QuickNCF, self).__init__()
+                self.user_embedding = nn.Embedding(num_users, embedding_dim)
+                self.item_embedding = nn.Embedding(num_items, embedding_dim)
+                self.feature_net = nn.Sequential(
+                    nn.Linear(10, embedding_dim), nn.ReLU()
+                )
+                self.gmf_layer = nn.Linear(embedding_dim, 1)
+                self.mlp = nn.Sequential(
+                    nn.Linear(embedding_dim * 3, 64), nn.ReLU(), nn.Dropout(0.2),
+                    nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 1)
+                )
+                self.fusion = nn.Sequential(
+                    nn.Linear(2, 16), nn.ReLU(), nn.Linear(16, 1), nn.Sigmoid()
+                )
+
+            def forward(self, user_ids, item_ids, item_features):
+                user_emb = self.user_embedding(user_ids)
+                item_emb = self.item_embedding(item_ids)
+                feat_emb = self.feature_net(item_features)
+
+                gmf_vector = user_emb * item_emb
+                gmf_output = self.gmf_layer(gmf_vector)
+
+                mlp_vector = torch.cat([user_emb, item_emb, feat_emb], dim=1)
+                mlp_output = self.mlp(mlp_vector)
+
+                fusion_input = torch.cat([gmf_output, mlp_output], dim=1)
+                rating = self.fusion(fusion_input) * 4 + 1
+
+                return {'rating': rating.squeeze()}
+
+        self.ncf_model = QuickNCF(
+            num_users=config['num_users'],
+            num_items=config['num_items'],
+            embedding_dim=32
+        ).to(self.device)
+
+        # 加载模型权重
+        self.ncf_model.load_state_dict(checkpoint['model_state_dict'])
+        self.ncf_model.eval()
+
+        # 保存映射关系
+        self.ncf_user_to_idx = checkpoint['user_to_idx']
+        self.ncf_item_to_idx = checkpoint['item_to_idx']
+
     def get_cf_recommendations(self, user_id, n_recommendations=20):
         """获取协同过滤推荐"""
         try:
@@ -98,7 +191,70 @@ class HybridRecommendationSystem:
             return [(rec['item_id'], rec['similarity_score']) for rec in content_recs]
         except:
             return []
-    
+
+    def get_ncf_recommendations(self, user_id, n_recommendations=20):
+        """获取神经协同过滤推荐"""
+        if not self.use_deep_learning or self.ncf_model is None:
+            return []
+
+        try:
+            # 检查用户是否在训练集中
+            if user_id not in self.ncf_user_to_idx:
+                return []
+
+            user_idx = self.ncf_user_to_idx[user_id]
+
+            # 获取用户已评分的商品
+            user_rated_items = set(
+                self.ratings_df[self.ratings_df['user_id'] == user_id]['item_id']
+            )
+
+            # 候选商品
+            candidate_items = [
+                item_id for item_id in self.ncf_item_to_idx.keys()
+                if item_id not in user_rated_items
+            ]
+
+            if not candidate_items:
+                return []
+
+            recommendations = []
+
+            with torch.no_grad():
+                for item_id in candidate_items[:1000]:  # 限制候选数量
+                    item_idx = self.ncf_item_to_idx[item_id]
+
+                    # 获取商品特征
+                    item_feature = self.cb_model.item_features[
+                        self.cb_model.item_features['item_id'] == item_id
+                    ]
+
+                    if item_feature.empty:
+                        continue
+
+                    feature_cols = [col for col in item_feature.columns if col != 'item_id']
+                    features = torch.tensor(
+                        item_feature[feature_cols].values[0],
+                        dtype=torch.float32
+                    ).unsqueeze(0).to(self.device)
+
+                    user_tensor = torch.tensor([user_idx], dtype=torch.long).to(self.device)
+                    item_tensor = torch.tensor([item_idx], dtype=torch.long).to(self.device)
+
+                    # 预测评分
+                    outputs = self.ncf_model(user_tensor, item_tensor, features)
+                    predicted_rating = outputs['rating'].item()
+
+                    recommendations.append((item_id, predicted_rating))
+
+            # 按预测评分排序
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+            return recommendations[:n_recommendations]
+
+        except Exception as e:
+            print(f"深度学习推荐失败: {e}")
+            return []
+
     def normalize_scores(self, scores, method='min_max'):
         """标准化分数到[0,1]区间"""
         if not scores:
@@ -126,19 +282,21 @@ class HybridRecommendationSystem:
             return [(item, (score - min_norm) / (max_norm - min_norm)) for item, score in normalized]
     
     def hybrid_weighted_combination(self, user_id, n_recommendations=10):
-        """加权组合混合推荐策略"""
+        """加权组合混合推荐策略（包含深度学习）"""
         print(f"🔄 为用户 {user_id} 生成混合推荐 (加权组合)...")
-        
-        # 获取两种推荐
+
+        # 获取三种推荐
         cf_recs = self.get_cf_recommendations(user_id, 50)
         cb_recs = self.get_cb_recommendations(user_id, 50)
-        
-        if not cf_recs and not cb_recs:
+        ncf_recs = self.get_ncf_recommendations(user_id, 50) if self.use_deep_learning else []
+
+        if not cf_recs and not cb_recs and not ncf_recs:
             return []
-        
+
         # 标准化分数
         cf_normalized = self.normalize_scores(cf_recs)
         cb_normalized = self.normalize_scores(cb_recs)
+        ncf_normalized = self.normalize_scores(ncf_recs) if ncf_recs else []
         
         # 创建商品分数字典
         item_scores = defaultdict(float)
@@ -148,11 +306,16 @@ class HybridRecommendationSystem:
         for item_id, score in cf_normalized:
             item_scores[item_id] += self.cf_weight * score
             item_sources[item_id].append('CF')
-        
+
         # 添加基于内容推荐分数
         for item_id, score in cb_normalized:
             item_scores[item_id] += self.cb_weight * score
             item_sources[item_id].append('CB')
+
+        # 添加神经协同过滤分数
+        for item_id, score in ncf_normalized:
+            item_scores[item_id] += self.ncf_weight * score
+            item_sources[item_id].append('NCF')
         
         # 排序并获取top-N
         sorted_items = sorted(item_scores.items(), key=lambda x: x[1], reverse=True)
